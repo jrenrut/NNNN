@@ -47,76 +47,73 @@ def write_bboxes(files_list: list,
 
 def main(args: Namespace) -> None:
 
-    print(args.files)
-
-    ground_truth = pd.read_csv(args.truth)
-    truthed = ground_truth['image_id'].unique()
-
     files_list = []
     bboxes_list = []
     srcs = []
     dsts = []
     images = []
-    for file in os.listdir(args.data_path):
+    for file in args.files:
 
         filepath = os.path.join(args.data_path,
                                 file)
-        if os.path.isfile(filepath) and file not in truthed:
 
-            image = cv2.imread(filepath)
+        image = cv2.imread(filepath)
 
-            width, height, _ = image.shape
-            scale = float(500 / max(width, height))
-            width = int(np.ceil(width * scale))
-            height = int(np.ceil(height * scale))
+        width, height, _ = image.shape
+        scale = float(500 / max(width, height))
+        width = int(np.ceil(width * scale))
+        height = int(np.ceil(height * scale))
 
-            image = cv2.resize(image,
-                               (2*height, 2*width),
-                               interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image,
+                           (2*height, 2*width),
+                           interpolation=cv2.INTER_AREA)
 
-            bboxes = get_bboxes(image)
+        bboxes = get_bboxes(image)
 
-            image = cv2.resize(image,
-                               (height, width),
-                               interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image,
+                           (height, width),
+                           interpolation=cv2.INTER_AREA)
 
-            fig, ax = plt.subplots(1)
-            ax.imshow(image[:, :, ::-1])
-            for i, bbox in enumerate(bboxes):
-                x, y, dx, dy = bbox
-                bboxes[i] = [int(x/2),
-                             int(y/2),
-                             int(x/2) + int(dx/2),
-                             int(y/2) + int(dy/2)]
-                rect = patches.Rectangle((x/2, y/2),
-                                         dx/2,
-                                         dy/2,
-                                         linewidth=1,
-                                         edgecolor='r',
-                                         facecolor='none')
-                ax.add_patch(rect)
-            plt.show()
-            print('Image labeled')
+        fig, ax = plt.subplots(1)
+        ax.imshow(image[:, :, ::-1])
+        for i, bbox in enumerate(bboxes):
+            x, y, dx, dy = bbox
+            bboxes[i] = [int(x/2),
+                         int(y/2),
+                         int(x/2) + int(dx/2),
+                         int(y/2) + int(dy/2)]
+            rect = patches.Rectangle((x/2, y/2),
+                                     dx/2,
+                                     dy/2,
+                                     linewidth=1,
+                                     edgecolor='r',
+                                     facecolor='none')
+            ax.add_patch(rect)
+        plt.show()
+        print('Image labeled')
 
-            try:
-                if not bboxes:
-                    bboxes = [[]]
-            except ValueError:
-                pass
+        try:
+            if not bboxes:
+                bboxes = [[]]
+        except ValueError:
+            pass
 
-            files_list.append(file)
-            bboxes_list.append(bboxes)
-            srcs.append(filepath)
-            dsts.append(os.path.join(args.storage_path, file))
-            images.append(image)
+        files_list.append(file)
+        bboxes_list.append(bboxes)
+        srcs.append(filepath)
+        dsts.append(os.path.join(args.storage_path,
+                                 file))
+        images.append(image)
 
     write_bboxes(files_list,
                  bboxes_list,
                  args)
 
     for src, dst, image in zip(srcs, dsts, images):
-        shutil.move(src, dst)
-        cv2.imwrite(src, image)
+        shutil.move(src,
+                    dst)
+        cv2.imwrite(src,
+                    image)
 
 
 if __name__ == '__main__':
@@ -160,5 +157,33 @@ if __name__ == '__main__':
                         help='List of specfic files to (re)label',
                         required=False)
     args = parser.parse_args()
+
+    ground_truth = pd.read_csv(args.truth)
+    truthed = ground_truth['image_id'].unique()
+
+    if args.files:
+        for file in args.files:
+            filepath = os.path.join(args.storage_path,
+                                    file)
+            if os.path.isfile(filepath):
+                ground_truth = ground_truth[ground_truth.image_id != file]
+                ground_truth.to_csv(args.truth,
+                                    mode='w',
+                                    header=['image_id',
+                                            'bbox'],
+                                    index=False)
+                dst = os.path.join(args.data_path,
+                                   file)
+                os.remove(dst)
+                shutil.move(filepath,
+                            dst)
+    else:
+        files = []
+        for file in os.listdir(args.data_path):
+            filepath = os.path.join(args.data_path,
+                                    file)
+            if os.path.isfile(filepath) and file not in truthed:
+                files.append(file)
+        args.files = files
 
     main(args)
