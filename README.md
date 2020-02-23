@@ -34,4 +34,4 @@ python labeler.py
   - [ ] Make more generic folder names to include TP and TN images
   - [ ] Ensure no double names / rows in ground truth csv
   - [ ] Use config file rather than hard-coding paths
-- [ ] Do the actual work of building/training model.
+- [ ] Do the actual work of building / training model.
