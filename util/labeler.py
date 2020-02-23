@@ -30,33 +30,31 @@ def get_bboxes(image: np.ndarray) -> list:
         return get_bboxes(image)
 
 
-def write_bboxes(file: str,
-                 bboxes: list,
+def write_bboxes(files_list: list,
+                 bboxes_list: list,
                  args: Namespace) -> None:
 
-    if not os.path.isfile(args.truth):
-        df = pd.DataFrame(columns=['image_id',
-                                   'bbox'])
-        df.to_csv(args.truth)
+    data = []
+    for file, bboxes in zip(files_list, bboxes_list):
+        data += [[file, bbox] for bbox in bboxes]
 
-    data = [[file, bbox] for bbox in bboxes]
     df = pd.DataFrame(data=data)
     df.to_csv(args.truth,
               mode='a',
-              header=False)
-
-    src = os.path.join(args.unlabeled,
-                       file)
-    dst = os.path.join(args.unlabeled_orig,
-                       file)
-    shutil.move(src, dst)
+              header=False,
+              index=False)
 
 
 def main(args: Namespace) -> None:
 
-    for file in os.listdir(args.unlabeled):
+    files_list = []
+    bboxes_list = []
+    srcs = []
+    dsts = []
+    images = []
+    for file in args.files:
 
-        filepath = os.path.join(os.path.abspath(args.unlabeled),
+        filepath = os.path.join(args.data_path,
                                 file)
 
         image = cv2.imread(filepath)
@@ -94,34 +92,98 @@ def main(args: Namespace) -> None:
         plt.show()
         print('Image labeled')
 
-        write_bboxes(file,
-                     bboxes,
-                     args)
+        try:
+            if not bboxes:
+                bboxes = [[]]
+        except ValueError:
+            pass
 
-        src = os.path.join(args.labeled,
-                           file)
-        cv2.imwrite(src, image)
+        files_list.append(file)
+        bboxes_list.append(bboxes)
+        srcs.append(filepath)
+        dsts.append(os.path.join(args.storage_path,
+                                 file))
+        images.append(image)
+
+    write_bboxes(files_list,
+                 bboxes_list,
+                 args)
+
+    for src, dst, image in zip(srcs, dsts, images):
+        shutil.move(src,
+                    dst)
+        cv2.imwrite(src,
+                    image)
 
 
 if __name__ == '__main__':
 
+    data_path = r'..\data'
+    data_path = os.path.abspath(data_path)
+
+    storage_path = r'..\data\originals'
+    storage_path = os.path.abspath(storage_path)
+
+    truth = r'..\data\truth\ground_truth_0.csv'
+    truth = os.path.abspath(truth)
+
+    if not os.path.isdir(data_path):
+        os.mkdir(data_path)
+    if not os.path.isdir(storage_path):
+        os.mkdir(storage_path)
+    if not os.path.isdir(os.path.dirname(truth)):
+        os.mkdir(os.path.dirname(truth))
+    if not os.path.isfile(truth):
+        df = pd.DataFrame(columns=['image_id',
+                                   'bbox'])
+        df.to_csv(truth,
+                  index=False)
+
     parser = ArgumentParser()
-    parser.add_argument('--labeled',
+    parser.add_argument('-d', '--data_path',
                         type=str,
                         help='Path to labeled images',
-                        default=r'..\data\nerf_labeled')
-    parser.add_argument('--unlabeled',
+                        default=data_path)
+    parser.add_argument('-s', '--storage_path',
                         type=str,
-                        help='Path to unlabeled images',
-                        default=r'..\data\nerf_unlabeled')
-    parser.add_argument('--unlabeled_orig',
-                        type=str,
-                        help='Path to original unlabeled images',
-                        default=r'..\data\nerf_unlabeled_orig')
-    parser.add_argument('--truth',
+                        help='Path to original images',
+                        default=storage_path)
+    parser.add_argument('-t', '--truth',
                         type=str,
                         help='Path to ground truth .json file',
-                        default=r'..\data\truth\ground_truth_0.csv')
+                        default=truth)
+    parser.add_argument('-f', '--files',
+                        nargs='+',
+                        help='List of specfic files to (re)label',
+                        required=False)
     args = parser.parse_args()
+
+    ground_truth = pd.read_csv(args.truth)
+    truthed = ground_truth['image_id'].unique()
+
+    if args.files:
+        for file in args.files:
+            filepath = os.path.join(args.storage_path,
+                                    file)
+            if os.path.isfile(filepath):
+                ground_truth = ground_truth[ground_truth.image_id != file]
+                ground_truth.to_csv(args.truth,
+                                    mode='w',
+                                    header=['image_id',
+                                            'bbox'],
+                                    index=False)
+                dst = os.path.join(args.data_path,
+                                   file)
+                os.remove(dst)
+                shutil.move(filepath,
+                            dst)
+    else:
+        files = []
+        for file in os.listdir(args.data_path):
+            filepath = os.path.join(args.data_path,
+                                    file)
+            if os.path.isfile(filepath) and file not in truthed:
+                files.append(file)
+        args.files = files
 
     main(args)
