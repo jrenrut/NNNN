@@ -36,7 +36,7 @@ def write_bboxes(file: str,
 
     if not os.path.isfile(args.truth):
         df = pd.DataFrame(columns=['image_id',
-                                   'bboxes'])
+                                   'bbox'])
         df.to_csv(args.truth)
 
     data = [[file, bbox] for bbox in bboxes]
