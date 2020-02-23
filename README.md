@@ -1,9 +1,11 @@
 # NNNN
-Nerf or Nothing Neural Network
+**N**erf or **N**othin' **N**eural **N**etwork
 
 <p align="center"> 
 <img src="https://i.imgur.com/MFjRp4F.png">
 </p>
+
+The universal binary image classifier.
 
 ## Setup
 
