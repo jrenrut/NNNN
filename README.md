@@ -35,7 +35,7 @@ To re-label data or label a specific new image (or both), pass the `-f` argument
 
 ```bash
 cd util
-python labeler.py -f 0.jpeg 1.jpeg
+python labeler.py -f 0.jpeg 3.jpeg
 ```
 
 ## TODO:
